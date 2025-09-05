@@ -1,0 +1,9 @@
+# TeamChat plugin v1.0 by BauHD
+# Modrinth: https://modrinth.com/project/lucktags
+# Discord: https://discord.gg/Gmxwzz2rA9
+
+# Supports MiniMessage: https://docs.advntr.dev/minimessage/format.html
+chat-format: "<prefix><player><suffix><dark_gray>: <gray><message>"
+tab-format: "<prefix><player><suffix>"
+
+override-display-name: false

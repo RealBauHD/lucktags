@@ -1,0 +1,12 @@
+name: LuckTags
+version: '1.0'
+main: dev.bauhd.lucktags.LuckTags
+authors: [BauHD]
+api-version: '1.21.7'
+folia-supported: true
+
+dependencies:
+  server:
+    LuckPerms:
+      load: BEFORE
+      required: true

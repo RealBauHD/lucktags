@@ -1,0 +1,106 @@
+package dev.bauhd.lucktags;
+
+import io.papermc.paper.event.player.AsyncChatEvent;
+import java.util.Objects;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.luckperms.api.LuckPerms;
+import net.luckperms.api.LuckPermsProvider;
+import net.luckperms.api.cacheddata.CachedMetaData;
+import net.luckperms.api.event.node.NodeMutateEvent;
+import net.luckperms.api.model.user.User;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.plugin.java.JavaPlugin;
+
+public final class LuckTags extends JavaPlugin implements Listener {
+
+  /*
+  vorteile
+  - modern
+  - ohne vault
+  - ohne scoreboard
+  - minimessage
+  - miniplaceholders
+
+  context
+  teams?
+   */
+
+  private LuckPerms luckPerms;
+
+  @Override
+  public void onEnable() {
+    this.luckPerms = LuckPermsProvider.get();
+
+    this.luckPerms.getEventBus().subscribe(this, NodeMutateEvent.class, event -> {
+      if (event.getTarget() instanceof User user) {
+        final Player player = this.getServer().getPlayer(user.getUniqueId());
+        if (player != null) {
+          this.updateUser(player, user);
+        }
+      }
+    });
+
+    this.getServer().getPluginManager().registerEvents(this, this);
+  }
+
+  @EventHandler
+  public void handleJoin(final PlayerJoinEvent event) {
+    final Player player = event.getPlayer();
+    this.updateUser(player,
+        Objects.requireNonNull(this.luckPerms.getUserManager().getUser(player.getUniqueId())));
+  }
+
+  @EventHandler
+  public void handleChat(final AsyncChatEvent event) {
+    final CachedMetaData meta = this.luckPerms.getUserManager()
+        .getUser(event.getPlayer().getUniqueId())
+        .getCachedData().getMetaData();
+
+    final Component format = MiniMessage.miniMessage().deserialize(
+        Objects.requireNonNull(this.getConfig().getString("chat-format")), TagResolver.builder()
+            .resolver(Placeholder.parsed("prefix", this.format(meta.getPrefix())))
+            .resolver(Placeholder.unparsed("player", event.getPlayer().getName()))
+            .resolver(Placeholder.parsed("suffix", this.format(meta.getSuffix())))
+            .resolver(Placeholder.component("message", event.message()))
+            .build());
+
+    event.renderer(((source, displayName, message, viewer) -> format));
+  }
+
+  private void updateUser(final Player player, final User user) {
+    final CachedMetaData meta = user.getCachedData().getMetaData();
+
+    final Component playerListName = MiniMessage.miniMessage().deserialize(
+        Objects.requireNonNull(this.getConfig().getString("tab-format")), TagResolver.builder()
+            .resolver(Placeholder.parsed("prefix", this.format(meta.getPrefix())))
+            .resolver(Placeholder.unparsed("player", player.getName()))
+            .resolver(Placeholder.parsed("suffix", this.format(meta.getSuffix())))
+            .build());
+    player.playerListName(playerListName);
+    player.setPlayerListOrder(meta.getWeight());
+
+    if (this.getConfig().getBoolean("override-display-name")) {
+      player.displayName(playerListName);
+    }
+  }
+
+  private String format(final String value) {
+    if (value == null) {
+      return "";
+    }
+    final boolean legacy = value.indexOf(LegacyComponentSerializer.AMPERSAND_CHAR) != -1;
+    if (legacy) {
+      return MiniMessage.miniMessage()
+          .serialize(LegacyComponentSerializer.legacyAmpersand().deserialize(value));
+    } else {
+      return value;
+    }
+  }
+}
