@@ -42,6 +42,7 @@ public final class LuckTags extends JavaPlugin implements Listener {
 
   @Override
   public void onEnable() {
+    this.saveDefaultConfig();
     this.luckPerms = LuckPermsProvider.get();
 
     this.luckPerms.getEventBus().subscribe(this, NodeMutateEvent.class, event -> {
