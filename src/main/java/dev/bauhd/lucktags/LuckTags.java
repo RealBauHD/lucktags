@@ -1,7 +1,10 @@
 package dev.bauhd.lucktags;
 
+import com.mojang.brigadier.Command;
 import io.github.miniplaceholders.api.MiniPlaceholders;
+import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.event.player.AsyncChatEvent;
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import java.util.Objects;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.text.Component;
@@ -49,12 +52,31 @@ public final class LuckTags extends JavaPlugin implements Listener {
     this.miniPlaceholders = pluginManager.isPluginEnabled("MiniPlaceholderAPI");
     if (pluginManager.isPluginEnabled("PlaceholderAPI")) {
       this.placeholderApiResolver = TagResolver.resolver("papi", (argument, context) -> {
-        final String parsedPlaceholder = PlaceholderAPI.setPlaceholders((OfflinePlayer) context.target(),
+        final String parsedPlaceholder = PlaceholderAPI.setPlaceholders(
+            (OfflinePlayer) context.target(),
             '%' + argument.popOr("papi tag requires an argument").value() + '%');
         return Tag.selfClosingInserting(
             LegacyComponentSerializer.legacySection().deserialize(parsedPlaceholder));
       });
     }
+
+    this.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event ->
+        event.registrar().register(Commands.literal("lucktags")
+            .requires(source -> source.getSender().hasPermission("lucktags.reload"))
+            .then(Commands.literal("reload")
+                .executes(context -> {
+                  this.reloadConfig();
+                  for (final Player player : this.getServer().getOnlinePlayers()) {
+                    final User user = this.luckPerms.getUserManager().getUser(player.getUniqueId());
+                    if (user != null) {
+                      this.updateUser(player, user);
+                    }
+                  }
+                  context.getSource().getSender().sendRichMessage(
+                      "<dark_gray>[<#528175>LuckTags</#528175>] <#65AE51>Configuration successfully reloaded.");
+                  return Command.SINGLE_SUCCESS;
+                }))
+            .build()));
   }
 
   @EventHandler
