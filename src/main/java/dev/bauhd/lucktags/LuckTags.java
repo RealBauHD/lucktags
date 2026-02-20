@@ -15,6 +15,7 @@ import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.cacheddata.CachedMetaData;
 import net.luckperms.api.event.node.NodeMutateEvent;
 import net.luckperms.api.model.user.User;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -24,21 +25,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public final class LuckTags extends JavaPlugin implements Listener {
 
-  /*
-  vorteile
-  - modern
-  - ohne vault
-  - ohne scoreboard
-  - minimessage
-  - miniplaceholders
-
-  context
-  teams?
-   */
-
   private LuckPerms luckPerms;
   private boolean miniPlaceholders;
-  private boolean placeholderApi;
+  private TagResolver placeholderApiResolver;
 
   @Override
   public void onEnable() {
@@ -58,7 +47,14 @@ public final class LuckTags extends JavaPlugin implements Listener {
     pluginManager.registerEvents(this, this);
 
     this.miniPlaceholders = pluginManager.isPluginEnabled("MiniPlaceholderAPI");
-    this.placeholderApi = pluginManager.isPluginEnabled("PlaceholderAPI");
+    if (pluginManager.isPluginEnabled("PlaceholderAPI")) {
+      this.placeholderApiResolver = TagResolver.resolver("papi", (argument, context) -> {
+        final String parsedPlaceholder = PlaceholderAPI.setPlaceholders((OfflinePlayer) context.target(),
+            '%' + argument.popOr("papi tag requires an argument").value() + '%');
+        return Tag.selfClosingInserting(
+            LegacyComponentSerializer.legacySection().deserialize(parsedPlaceholder));
+      });
+    }
   }
 
   @EventHandler
@@ -107,13 +103,8 @@ public final class LuckTags extends JavaPlugin implements Listener {
     if (this.miniPlaceholders) {
       builder.resolver(MiniPlaceholders.audienceGlobalPlaceholders());
     }
-    if (this.placeholderApi) {
-      builder.resolver(TagResolver.resolver("papi", (argument, context) -> {
-        final String parsedPlaceholder = PlaceholderAPI.setPlaceholders(player,
-            '%' + argument.popOr("papi tag requires an argument").value() + '%');
-        return Tag.selfClosingInserting(
-            LegacyComponentSerializer.legacySection().deserialize(parsedPlaceholder));
-      }));
+    if (this.placeholderApiResolver != null) {
+      builder.resolver(this.placeholderApiResolver);
     }
     return builder;
   }
