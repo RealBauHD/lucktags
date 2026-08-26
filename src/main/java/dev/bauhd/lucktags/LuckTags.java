@@ -99,7 +99,7 @@ public final class LuckTags extends JavaPlugin implements Listener {
             Objects.requireNonNull(this.getConfig().getString("chat-format")),
             event.getPlayer(),
             this.resolver(meta, event.getPlayer())
-                .resolver(Placeholder.component("message", event.message()))
+                .resolver(Placeholder.component("message", message))
                 .build())));
   }
 
