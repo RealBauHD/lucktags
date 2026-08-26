@@ -2,6 +2,7 @@ package dev.bauhd.lucktags;
 
 import com.mojang.brigadier.Command;
 import io.github.miniplaceholders.api.MiniPlaceholders;
+import io.papermc.paper.chat.ChatRenderer;
 import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
@@ -21,6 +22,7 @@ import net.luckperms.api.model.user.User;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.PluginManager;
@@ -86,20 +88,19 @@ public final class LuckTags extends JavaPlugin implements Listener {
         Objects.requireNonNull(this.luckPerms.getUserManager().getUser(player.getUniqueId())));
   }
 
-  @EventHandler
+  @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
   public void handleChat(final AsyncChatEvent event) {
     final CachedMetaData meta = this.luckPerms.getUserManager()
         .getUser(event.getPlayer().getUniqueId())
         .getCachedData().getMetaData();
 
-    final Component format = MiniMessage.miniMessage().deserialize(
-        Objects.requireNonNull(this.getConfig().getString("chat-format")),
-        event.getPlayer(),
-        this.resolver(meta, event.getPlayer())
-            .resolver(Placeholder.component("message", event.message()))
-            .build());
-
-    event.renderer(((source, displayName, message, viewer) -> format));
+    event.renderer(ChatRenderer.viewerUnaware((source, displayName, message) ->
+        MiniMessage.miniMessage().deserialize(
+            Objects.requireNonNull(this.getConfig().getString("chat-format")),
+            event.getPlayer(),
+            this.resolver(meta, event.getPlayer())
+                .resolver(Placeholder.component("message", event.message()))
+                .build())));
   }
 
   private void updateUser(final Player player, final User user) {
